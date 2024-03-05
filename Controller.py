@@ -83,9 +83,20 @@ class PWM:
         # GPIO.output(self.pin, self.default_state)
         pwmCache.remove(self)
 
+def error_handler(func):
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except:
+            return False
+
 class Controller():
     def __init__(self, *, debug=False) -> None:
-        '''Initialize the controller and set up the GPIO pins\n\nTakes an optional debug parameter to print debug information\n\nExample: controller = Controller(debug=True)'''
+        """Yahboom Controller
+
+        Args:
+            debug (bool, optional): Enable debug mode. Defaults to False.
+        """
         global pwm_ENA, pwm_ENB, delaytime, gpio_code, pwm_rled, pwm_gled, pwm_bled
         global pwm_FrontServo, pwm_UpDownServo, pwm_LeftRightServo, pwm_UpDownServo_pos, pwm_LeftRightServo_pos
 
@@ -156,7 +167,7 @@ class Controller():
         self.cleanup()
 
     def cleanup(self):
-        '''Cleanup GPIO pins and stop all PWMs'''
+        """Cleanup GPIO pins and stop all PWMs"""
         self.stop()
         for pwm in pwmCache:
             del pwm
@@ -171,28 +182,62 @@ class Controller():
         GPIO.cleanup()
 
     def get_signal(self, signal: Signal):
-        '''Get the value of a Signal'''
+        """Get the state of a signal
+
+        Args:
+            signal (Signal): Signal object
+
+        Returns:
+            _type_: _bool_ True if the signal is active
+        """
         return GPIO.input(signal.pin) == signal.active
     
     #region PWM functions
+    @error_handler
     def pwm_frequency(self, pwm: PWM, *, frequency):
-        '''Set the frequency of a PWM'''
+        """Set the frequency of a PWM
+
+        Args:
+            pwm (PWM): PWM object
+            frequency (_type_): Frequency in Hz
+
+        Returns:
+            _type_: _bool_ True if successful
+        """
         if self.debug: print(f"{f'[{pwm.name}] ' if pwm.name else ''}Setting PWM Frequency")
         if pwm.active:
             pwm.gpio_pwm.ChangeFrequency(frequency)
         pwm.frequency = frequency
         return True
 
+    @error_handler
     def pwm_duty(self, pwm: PWM, *, duty_cycle):
-        '''Set the duty cycle of a PWM'''
+        """Set the duty cycle of a PWM
+
+        Args:
+            pwm (PWM): PWM object
+            duty_cycle (_type_): Duty Cycle
+
+        Returns:
+            _type_: _bool_ True if successful
+        """
         if self.debug: print(f"{f'[{pwm.name}] ' if pwm.name else ''}Setting PWM Duty Cycle")
         if pwm.active:
             pwm.gpio_pwm.ChangeDutyCycle(duty_cycle)
         pwm.duty_cycle = duty_cycle
         return True
     
+    @error_handler
     def pwm_start(self, pwm: PWM, *, duty_cycle=None):
-        '''Start a PWM'''
+        """Start a PWM
+
+        Args:
+            pwm (PWM): PWM object
+            duty_cycle (_type_, optional): _int_ Duty Cycle. Defaults to None.
+
+        Returns:
+            _type_: _bool_ True if successful
+        """
         # Change duty cycle if active
         if duty_cycle is not None and pwm.active:
             if self.debug: print(f"{f'[{pwm.name}] ' if pwm.name else ''}Changing Duty Cycle")
@@ -214,42 +259,43 @@ class Controller():
         pwm.active = True
         return True
     
+    @error_handler
     def pwm_stop(self, pwm: PWM):
-        '''Stop a PWM'''
+        """Stop a PWM
+
+        Args:
+            pwm (PWM): PWM object
+
+        Returns:
+            _type_: _bool_ True if successful
+        """
         if self.debug: print(f"{f'[{pwm.name}] ' if pwm.name else ''}Stopping PWM")
         # Use DutyCycle to stop the PWM since it is more reliable than stop()
         pwm.gpio_pwm.ChangeDutyCycle(0 if pwm.default_state == 0 else 100)
-        # # Halt the PWM
-        # pwm.gpio_pwm.stop()
-        # # Delete the PWM object so its state is reset
-        # del pwm.gpio_pwm
-        # # Give the PWM time to fully stop
-        # time.sleep(1 / pwm.frequency)
-        # # Set the pin to the default state
-        # GPIO.output(pwm.pin, pwm.default_state)
         pwm.active = False
         return True
-    #endregion
-    
-    #region Misc functions
-    def beep(self, duration=1, frequency=1, on_time=20):
-        '''Beep for a specified duration and frequency'''
-        if self.debug: print(f"Beeping: {duration}, {frequency}")
-        pwm_Buzzer = GPIO.PWM(Misc.Buzzer, frequency)
-        pwm_Buzzer.start(100 - on_time)
-        threading.Timer(duration, pwm_Buzzer.stop).start()
     #endregion
 
     #region LED functions
     def color(self, r: int, g: int, b: int):
-        '''Set the RGB color of the LEDs 0-255'''
+        """Set the RGB color of the LEDs
+
+        Args:
+            r (int): Red channel
+            g (int): Green channel
+            b (int): Blue channel
+        """
         if self.debug: print(f"Setting Color: {r}, {g}, {b}")
         pwm_rled.ChangeDutyCycle(r/255 * 100)
         pwm_gled.ChangeDutyCycle(g/255 * 100)
         pwm_bled.ChangeDutyCycle(b/255 * 100)
 
     def color(self, hex_color: str):
-        '''Set the RGB color of the LEDs as a hex string'''
+        """Set the RGB color of the LEDs from a hex string
+
+        Args:
+            hex_color (str): Hex string. #RRGGBB
+        """
         if self.debug: print(f"Setting Color: {hex_color}")
         hex_color = hex_color.lstrip('#')
         lv = len(hex_color)
@@ -257,25 +303,27 @@ class Controller():
         pwm_rled.ChangeDutyCycle(rgb[0]/255 * 100)
         pwm_gled.ChangeDutyCycle(rgb[1]/255 * 100)
         pwm_bled.ChangeDutyCycle(rgb[2]/255 * 100)
-
-    def amber(self, duration=1, frequency=1, on_time=20):
-        '''Blink amber LED for a specified duration and frequency'''
-        if self.debug: print(f"Blinking Amber: {duration}, {frequency}")
-        pwm_Amber = GPIO.PWM(Servo.J5, frequency)
-        pwm_Amber.start(on_time)
-        threading.Timer(duration, pwm_Amber.stop).start()
     #endregion
         
     #region Servo movement functions
-    def sonar_pos(self, pos):
-        '''Set the ultrasonic position 0-180'''
+    def sonar_pos(self, pos=90):
+        """Set the sonar position
+
+        Args:
+            pos (_int_, optional): _0-180_ Degrees. Defaults to 90.
+        """
         if self.debug: print(f"Setting Sonar Position: {pos}")
         pwm_FrontServo.ChangeDutyCycle(2.5 + 10 * pos/180)
         time.sleep(0.3)
         pwm_FrontServo.ChangeDutyCycle(0)
     
-    def camera_pos(self, horizontal=75, vertical=75):
-        '''Set the camera position pitch and yaw 0-180'''
+    def camera_pos(self, horizontal=90, vertical=90):
+        """Set the camera position
+
+        Args:
+            horizontal (_int_, optional): _int_ 0-180 Degrees. Defaults to 90.
+            vertical (_int_, optional): _int_ 0-180 Degrees. Defaults to 90.
+        """
         if self.debug: print(f"Setting Camera Position X:{horizontal} Y:{vertical}")
         pwm_UpDownServo.ChangeDutyCycle(2.5 + 10 * vertical/180)
         pwm_LeftRightServo.ChangeDutyCycle(2.5 + 10 * horizontal/180)
@@ -286,7 +334,7 @@ class Controller():
     
     #region Sensor functions
     def get_track(self):
-        '''Get the track sensor values as a string'''
+        """Get the track sensor values as a string"""
         TrackSensorLeftValue1  = GPIO.input(TrackSensors.LeftPin1)
         TrackSensorLeftValue2  = GPIO.input(TrackSensors.LeftPin2)
         TrackSensorRightValue1 = GPIO.input(TrackSensors.RightPin1)
@@ -299,7 +347,7 @@ class Controller():
         return ''.join(infrared_track_value_list)
         
     def get_distance(self):
-        '''Get the distance of the obstacle in front of the ultrasonic sensor as float'''
+        """Get the distance of the obstacle in front of the ultrasonic sensor as float"""
         if self.debug: print("Getting Distance")
         GPIO.output(Ultrasonic.TrigPin,GPIO.HIGH)
         time.sleep(0.000015)
@@ -317,46 +365,76 @@ class Controller():
     #endregion
 
     #region Basic motor movement functions
-    def forward(self, duration=1, speed=50):
-        '''Move forward for a specified duration and speed'''
+    def forward(self, duration=1.0, speed=50):
+        """Move forward for a specified duration and speed
+
+        Args:
+            duration (float, optional): _float_ Time in seconds. Defaults to 1.0.
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Moving Forward: {duration}, {speed}")
         self.LM_forward(speed)
         self.RM_forward(speed)
         time.sleep(duration)
         self.stop()
 
-    def reverse(self, duration=1, speed=50):
-        '''Move backward for a specified duration and speed'''
+    def reverse(self, duration=1.0, speed=50):
+        """Move backward for a specified duration and speed
+
+        Args:
+            duration (float, optional): _float_ Time in seconds. Defaults to 1.0.
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Moving Backward: {duration}, {speed}")
         self.LM_reverse(speed)
         self.RM_reverse(speed)
         time.sleep(duration)
         self.stop()
 
-    def turn_left(self, duration=1, speed=50):
-        '''Turn left for a specified duration and speed'''
+    def turn_left(self, duration=1.0, speed=50):
+        """Turn left for a specified duration and speed
+
+        Args:
+            duration (float, optional): _float_ Time in seconds. Defaults to 1.0.
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Turning Left: {duration}, {speed}")
         self.RM_forward(speed)
         time.sleep(duration)
         self.stop()
 
-    def turn_right(self, duration=1, speed=50):
-        '''Turn right for a specified duration and speed'''
+    def turn_right(self, duration=1.0, speed=50):
+        """Turn right for a specified duration and speed
+
+        Args:
+            duration (float, optional): _float_ Time in seconds. Defaults to 1.0.
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Turning Right: {duration}, {speed}")
         self.LM_forward(speed)
         time.sleep(duration)
         self.stop()
 
-    def rotate_left(self, duration=1, speed=50):
-        '''Rotate left for a specified duration and speed'''
+    def rotate_left(self, duration=1.0, speed=50):
+        """Rotate left for a specified duration and speed
+
+        Args:
+            duration (float, optional): _float_ Time in seconds. Defaults to 1.
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Rotating Left: {duration}, {speed}")
         self.LM_reverse(speed)
         self.RM_forward(speed)
         time.sleep(duration)
         self.stop()
 
-    def rotate_right(self, duration=1, speed=50):
-        '''Rotate right for a specified duration and speed'''
+    def rotate_right(self, duration=1.0, speed=50):
+        """Rotate right for a specified duration and speed
+
+        Args:
+            duration (float, optional): _float_ Time in seconds. Defaults to 1.
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Rotating Right: {duration}, {speed}")
         self.LM_forward(speed)
         self.RM_reverse(speed)
@@ -364,7 +442,7 @@ class Controller():
         self.stop()
 
     def stop(self):
-        '''Stops all track motors'''
+        """Stops all track motors"""
         if self.debug: print("Stopping")
         GPIO.output(Motor.L_F, GPIO.LOW)
         GPIO.output(Motor.L_R, GPIO.LOW)
@@ -374,28 +452,44 @@ class Controller():
     
     #region Advanced motor movement functions
     def LM_forward(self, speed=50):
-        '''Move left motor forward at a specified speed'''
+        """Move left motor forward at a specified speed
+
+        Args:
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Moving Left Motor Forward: {speed}")
         pwm_ENA.ChangeDutyCycle(speed)
         GPIO.output(Motor.L_F, GPIO.HIGH)
         GPIO.output(Motor.L_R, GPIO.LOW)
         
     def LM_reverse(self, speed=50):
-        '''Move left motor backward at a specified speed'''
+        """Move left motor backward at a specified speed
+
+        Args:
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Moving Left Motor Backward: {speed}")
         pwm_ENA.ChangeDutyCycle(speed)
         GPIO.output(Motor.L_F, GPIO.LOW)
         GPIO.output(Motor.L_R, GPIO.HIGH)
         
     def RM_forward(self, speed=50):
-        '''Move right motor forward at a specified speed'''
+        """Move right motor forward at a specified speed
+
+        Args:
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Moving Right Motor Forward: {speed}")
         pwm_ENB.ChangeDutyCycle(speed)
         GPIO.output(Motor.R_F, GPIO.HIGH)
         GPIO.output(Motor.R_R, GPIO.LOW)
         
     def RM_reverse(self, speed=50):
-        '''Move right motor backward at a specified speed'''
+        """Move right motor backward at a specified speed
+
+        Args:
+            speed (int, optional): _int_ Motor speed. Defaults to 50.
+        """
         if self.debug: print(f"Moving Right Motor Backward: {speed}")
         pwm_ENB.ChangeDutyCycle(speed)
         GPIO.output(Motor.R_F, GPIO.LOW)
