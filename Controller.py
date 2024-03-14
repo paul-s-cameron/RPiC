@@ -277,7 +277,7 @@ class Controller():
     #endregion
 
     #region LED functions
-    def color(self, r: int, g: int, b: int):
+    def led_color(self, r: int, g: int, b: int):
         """Set the RGB color of the LEDs
 
         Args:
@@ -290,7 +290,7 @@ class Controller():
         pwm_gled.ChangeDutyCycle(g/255 * 100)
         pwm_bled.ChangeDutyCycle(b/255 * 100)
 
-    def color(self, hex_color: str):
+    def led_color(self, hex_color: str):
         """Set the RGB color of the LEDs from a hex string
 
         Args:
@@ -303,6 +303,13 @@ class Controller():
         pwm_rled.ChangeDutyCycle(rgb[0]/255 * 100)
         pwm_gled.ChangeDutyCycle(rgb[1]/255 * 100)
         pwm_bled.ChangeDutyCycle(rgb[2]/255 * 100)
+        
+    def led_off(self):
+        """Turn off the LEDs"""
+        if self.debug: print("Turning Off LEDs")
+        pwm_rled.ChangeDutyCycle(0)
+        pwm_gled.ChangeDutyCycle(0)
+        pwm_bled.ChangeDutyCycle(0)
     #endregion
         
     #region Servo movement functions
