@@ -79,8 +79,8 @@ class PWM:
         pwmCache.append(self)
 
     def __del__(self):
+        self.gpio_pwm.ChangeDutyCycle(0 if self.default_state == 0 else 100)
         self.gpio_pwm.stop()
-        # GPIO.output(self.pin, self.default_state)
         pwmCache.remove(self)
 
 def error_handler(func):
